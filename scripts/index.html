@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Lista de Animes do Betoro-chan</title>
+<meta name="description" content="A lista de animes, mangás e novels do Betoro-chan e da galera: o que cada um viu, notas, comentários e os lançamentos oficiais mais recentes.">
+<meta name="theme-color" content="#e8200f">
+<meta name="color-scheme" content="light dark">
+<link rel="canonical" href="https://norberto990.github.io/">
+<!-- prévia ao compartilhar o link (WhatsApp, Discord, etc.) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Lista de Animes do Betoro-chan">
+<meta property="og:title" content="Lista de Animes do Betoro-chan">
+<meta property="og:description" content="Animes, mangás e novels da galera, com notas, comentários e os lançamentos oficiais mais recentes.">
+<meta property="og:image" content="https://norberto990.github.io/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="pt_BR">
+<meta name="twitter:card" content="summary_large_image">
+<!-- ícones -->
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<a class="skip" href="#home">Pular para o conteúdo</a>
+<div class="wrap" id="app" data-cat="anime">
+  <header class="top topbar">
+    <a href="/" data-link class="logo" aria-label="Lista de Animes do Betoro-chan, início">
+      <p class="eyebrow" aria-hidden="true">ベトロちゃん</p>
+      <h1><span id="h1pre">Lista de Animes do</span> <span class="brand">Betoro-chan</span></h1>
+    </a>
+    <div class="langs" id="langs" role="group" aria-label="Idioma">
+      <button type="button" data-lang="pt" aria-pressed="true" lang="pt-BR">PT</button>
+      <button type="button" data-lang="en" aria-pressed="false" lang="en">EN</button>
+    </div>
+  </header>
+  <div class="me auth" id="me"></div>
+
+  <main id="home" tabindex="-1">
+    <nav class="cats" id="cats" role="tablist" aria-label="Categoria"></nav>
+    <div class="searchbox" id="searchbox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input class="q" id="q" type="search" autocomplete="off" enterkeyhint="search" placeholder="Buscar anime…" aria-label="Buscar">
+      <div class="sugg" id="sugg" hidden></div>
+    </div>
+    <div id="newform"></div>
+    <div class="bar">
+      <div class="seg" id="seg" role="tablist" aria-label="Visão"></div>
+      <button class="btn" id="addbtn" type="button" hidden>+ Adicionar à mão</button>
+    </div>
+    <div class="filters" id="filters"></div>
+    <ul class="cards" id="list"></ul>
+    <div id="morebox" class="morebox"></div>
+  </main>
+
+  <section class="wv" id="wv" hidden></section>
+  <p class="note" id="note" role="status"></p>
+  <footer class="foot" id="footer"></footer>
+</div>
+
+<div class="sheet-bg" id="sheetbg" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="sheet-grip" aria-hidden="true"></div>
+  <header class="sheet-head" id="sheethead"></header>
+  <div class="sheet-body" id="chat"></div>
+  <form class="composer" id="composer">
+    <div class="composer-in">
+      <div class="replying" id="replying" hidden></div>
+      <div class="cpreview" id="cpreview" hidden></div>
+      <div class="crow">
+        <label class="cbtn" id="cimgbtn" for="cimg" title="Anexar imagem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg></label>
+        <input type="file" id="cimg" class="sr" accept="image/png,image/jpeg,image/gif,image/webp">
+        <textarea id="cmsg" rows="1" maxlength="1000" placeholder="Escreva um comentário…" aria-label="Mensagem"></textarea>
+        <button class="csend" id="csend" type="submit" aria-label="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
+      </div>
+    </div>
+  </form>
+  <p class="sheet-ro" id="sheetro" hidden></p>
+</div>
+
+<div class="gate" id="gate" hidden></div>
+<div class="toast" id="toast" hidden></div>
+<noscript><p class="note" style="padding:16px">Este site precisa de JavaScript ligado para funcionar.</p></noscript>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+<script src="/config.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
