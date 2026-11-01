@@ -8,7 +8,7 @@
 //                 oficiais onde assistir/ler.
 //   2. MANGA Plus (oficial da Shueisha) → último capítulo de mangás como
 //                 One Piece, Jujutsu Kaisen, Chainsaw Man...
-//   3. Webtoon (feed oficial) → último episódio de webtoons.
+//   3. Webtoon e Shonen Jump+ (feeds oficiais) → último episódio/capítulo.
 //   4. Tradução gratuita (MyMemory) → sinopse em português.
 //  Não adiciona obras: só o ADM adiciona pelo site.
 //
@@ -86,6 +86,8 @@ function feedFromUrl(url) {
   if ((m = String(url).match(/mangaplus\.shueisha\.co\.jp\/titles\/(\d+)/))) return "mangaplus:" + m[1];
   if ((m = String(url).match(/webtoons\.com\/([a-z-]+)\/([^/?#]+)\/([^/?#]+)\/(?:list|rss)\?title_no=(\d+)/i)))
     return "webtoon:https://www.webtoons.com/" + m[1] + "/" + m[2] + "/" + m[3] + "/rss?title_no=" + m[4];
+  if ((m = String(url).match(/^https?:\/\/(?:www\.)?(?:shonenjumpplus\.com|tonarinoyj\.jp|comic-days\.com|comic-action\.com|comicborder\.com|comic-gardo\.com|kuragebunch\.com|magcomi\.com|comic-zenon\.com|comic-trail\.com|comic-ogyaaa\.com|viewer\.heros-web\.com|comic-earthstar\.com|comicbushi-web\.com|ichicomi\.com)\/(?:episode|rss\/series|series)\/\d+/i)))
+    return "gigaviewer:" + m[0].replace(/^http:/, "https:");
   return "";
 }
 function feedFromLinks(ext) {
@@ -171,6 +173,35 @@ async function webtoonLatest(rss) {
   const r = await fetch(rss, { headers: { "User-Agent": "Mozilla/5.0 (compatible; BetoroChanLista/1.0)" } });
   if (!r.ok) throw new Error("Webtoon " + r.status);
   return webtoonParse(await r.text());
+}
+
+/* ---------------- Shonen Jump+ e sites parecidos (RSS oficial) ---------------- */
+const UA = { "User-Agent": "Mozilla/5.0 (compatible; BetoroChanLista/1.0)" };
+export function gigaParse(xml) {
+  const items = [...String(xml).matchAll(/<item>([\s\S]*?)<\/item>/gi)].map(m => m[1]);
+  let best = null;
+  for (const it of items) {
+    const tag = t => { const m = it.match(new RegExp("<" + t + ">([\\s\\S]*?)</" + t + ">", "i")); return m ? decodeEnt(m[1].replace(/^<!\[CDATA\[|\]\]>$/g, "").trim()) : ""; };
+    const title = tag("title"), link = tag("link"), pub = tag("pubDate");
+    const m = title.match(/第\s*(\d+(?:\.\d+)?)\s*話/) || title.match(/(?:ep(?:isode)?|ch(?:apter)?)\.?\s*(\d+(?:\.\d+)?)/i) || title.match(/[#＃]\s*(\d+(?:\.\d+)?)/);
+    if (!m) continue;
+    const num = parseFloat(m[1]);
+    if (!best || num > best.num) best = { num, label: title.slice(0, 80), at: Date.parse(pub) || null, url: link || null };
+  }
+  return best;
+}
+async function gigaLatest(url) {
+  let rss = url;
+  if (!/\/rss\/series\/\d+/.test(url)) {               // página da série ou de um capítulo: acha o feed nela
+    const r = await fetch(url, { headers: UA });
+    if (!r.ok) throw new Error("Jump+ " + r.status);
+    const m = (await r.text()).match(/https?:\/\/[^"'\s]+\/rss\/series\/\d+/);
+    if (!m) throw new Error("Jump+: feed não encontrado na página");
+    rss = m[0];
+  }
+  const r = await fetch(rss, { headers: UA });
+  if (!r.ok) throw new Error("Jump+ RSS " + r.status);
+  return gigaParse(await r.text());
 }
 
 /* ---------------- tradução gratuita ---------------- */
@@ -321,6 +352,7 @@ export async function main() {
       let r = null, src = "";
       if (feed.startsWith("mangaplus:")) { r = await mangaPlusLatest(feed.slice(10)); src = "mangaplus"; await sleep(1100); }
       else if (feed.startsWith("webtoon:")) { r = await webtoonLatest(feed.slice(8)); src = "webtoon"; await sleep(800); }
+      else if (feed.startsWith("gigaviewer:")) { r = await gigaLatest(feed.slice(11)); src = "jumpplus"; await sleep(1000); }
       p.rel_checked_at = iso(now);
       if (r && setRelease(w, p, r, src, now)) { rels++; log(`  novo: ${w.title} → ${r.label || r.num}`); }
     } catch (e) { erros++; p.rel_checked_at = iso(now); log(`  ${w.title}: ${e.message}`); }
