@@ -212,7 +212,7 @@ function release(w) {
 }
 function relTxt(w, r) {
   if (r.num == null) return "";
-  if (r.label && (r.src === "webtoon" || r.src === "adm")) return r.label;
+  if (r.label && (r.src === "webtoon" || r.src === "jumpplus" || r.src === "adm")) return r.label;
   return UNIT[w.kind]()[1] + " " + numTxt(r.num);
 }
 function behind(w, it, r) {
@@ -342,6 +342,8 @@ function feedFromUrl(url) {
   if ((m = String(url).match(/mangaplus\.shueisha\.co\.jp\/titles\/(\d+)/))) return "mangaplus:" + m[1];
   if ((m = String(url).match(/webtoons\.com\/([a-z-]+)\/([^/?#]+)\/([^/?#]+)\/(?:list|rss)\?title_no=(\d+)/i)))
     return "webtoon:https://www.webtoons.com/" + m[1] + "/" + m[2] + "/" + m[3] + "/rss?title_no=" + m[4];
+  if ((m = String(url).match(/^https?:\/\/(?:www\.)?(?:shonenjumpplus\.com|tonarinoyj\.jp|comic-days\.com|comic-action\.com|comicborder\.com|comic-gardo\.com|kuragebunch\.com|magcomi\.com|comic-zenon\.com|comic-trail\.com|comic-ogyaaa\.com|viewer\.heros-web\.com|comic-earthstar\.com|comicbushi-web\.com|ichicomi\.com)\/(?:episode|rss\/series|series)\/\d+/i)))
+    return "gigaviewer:" + m[0].replace(/^http:/, "https:");
   return "";
 }
 function feedFromLinks(ext) {
@@ -350,8 +352,8 @@ function feedFromLinks(ext) {
   for (const l of [...mp, ...all]) { const f = feedFromUrl(l.url); if (f) return f; }
   return "";
 }
-const feedLabel = f => (f.startsWith("mangaplus:") ? "MANGA Plus" : f.startsWith("webtoon:") ? "WEBTOON" : "");
-const feedToUrl = f => (f.startsWith("mangaplus:") ? "https://mangaplus.shueisha.co.jp/titles/" + f.slice(10) : f.startsWith("webtoon:") ? f.slice(8).replace("/rss?", "/list?") : "");
+const feedLabel = f => (f.startsWith("mangaplus:") ? "MANGA Plus" : f.startsWith("webtoon:") ? "WEBTOON" : f.startsWith("gigaviewer:") ? (/shonenjumpplus/.test(f) ? "Shonen Jump+" : f.slice(11).split("/")[2]) : "");
+const feedToUrl = f => (f.startsWith("mangaplus:") ? "https://mangaplus.shueisha.co.jp/titles/" + f.slice(10) : f.startsWith("webtoon:") ? f.slice(8).replace("/rss?", "/list?") : f.startsWith("gigaviewer:") ? f.slice(11) : "");
 const alCache = new Map();
 async function anilistSearch(q, kind) {
   const key = kind + ":" + norm(q);
@@ -520,7 +522,8 @@ function renderFooter() {
     h("p", {}, L("Lançamentos e links oficiais: ", "Releases and official links: "),
       h("a", { href: "https://anilist.co", target: "_blank", rel: "noopener" }, "AniList"), " · ",
       h("a", { href: "https://mangaplus.shueisha.co.jp", target: "_blank", rel: "noopener" }, "MANGA Plus"), " · ",
-      h("a", { href: "https://www.webtoons.com", target: "_blank", rel: "noopener" }, "WEBTOON"), ". ",
+      h("a", { href: "https://www.webtoons.com", target: "_blank", rel: "noopener" }, "WEBTOON"), " · ",
+      h("a", { href: "https://shonenjumpplus.com", target: "_blank", rel: "noopener" }, "Shonen Jump+"), ". ",
       L("Só indicamos sites oficiais.", "We only point to official sites.")),
     h("p", {}, "© " + y + " " + L("Lista de Animes do Betoro-chan", "Betoro-chan's Anime List")));
 }
@@ -789,7 +792,7 @@ function renderNew() {
     const kind = draft.k;
     if (findWork(kind, t)) { fail(L("Essa obra já está no site.", "This title is already on the site.")); return; }
     const feedIn = $("nf-feed").value.trim(), feed = feedIn ? feedFromUrl(feedIn) : "";
-    if (feedIn && !feed) { fail(L("Esse link não é do MANGA Plus nem do WEBTOON.", "That link isn't from MANGA Plus or WEBTOON.")); return; }
+    if (feedIn && !feed) { fail(L("Esse link não é do MANGA Plus, WEBTOON nem Shonen Jump+.", "That link isn't from MANGA Plus, WEBTOON or Shonen Jump+.")); return; }
     busy = true; save.disabled = true; save.textContent = L("Salvando…", "Saving…");
     try {
       const cover = draft.file ? await uploadImg(draft.file) : null;
@@ -808,7 +811,7 @@ function renderNew() {
     h("div", { class: "field" }, L("É um…", "It's a…"), kindRow),
     h("label", { class: "field" }, L("Nome", "Title"), h("input", { id: "nf-t", value: draft.t || "", maxlength: "160", required: true })),
     h("label", { class: "field" }, L("Outros nomes (opcional)", "Other titles (optional)"), h("input", { id: "nf-sub", maxlength: "600" })),
-    h("label", { class: "field" }, L("Link do MANGA Plus ou WEBTOON (opcional, para atualizar sozinho)", "MANGA Plus or WEBTOON link (optional, for automatic updates)"), h("input", { id: "nf-feed", type: "url", inputmode: "url", placeholder: "https://mangaplus.shueisha.co.jp/titles/…" })),
+    h("label", { class: "field" }, L("Link do MANGA Plus, WEBTOON ou Shonen Jump+ (opcional, para atualizar sozinho)", "MANGA Plus, WEBTOON or Shonen Jump+ link (optional, for automatic updates)"), h("input", { id: "nf-feed", type: "url", inputmode: "url", placeholder: "https://mangaplus.shueisha.co.jp/titles/…" })),
     imgBox, h("div", { class: "field" }, L("Marcar na minha lista (opcional)", "Mark on my list (optional)"), stRow),
     h("div", { class: "row2" }, notaSelect("nf-n", null, e => e.target.classList.toggle("has", !!e.target.value)),
       h("div", { class: "actions" }, h("button", { class: "btn alt", type: "button", onclick: () => { draft = null; renderNew(); } }, L("Cancelar", "Cancel")), save))));
@@ -930,7 +933,7 @@ function releaseBox(w, r) {
   const one = w.kind === "anime" ? L("episódio", "episode") : w.kind === "manga" ? L("capítulo", "chapter") : L("volume", "volume");
   const where = w.kind === "anime" ? L("Onde assistir (oficial)", "Where to watch (official)") : L("Onde ler (oficial)", "Where to read (official)");
   const links = (w.links || []).slice(0, 3);
-  const src = { anilist: "AniList", mangaplus: "MANGA Plus", webtoon: "WEBTOON", adm: "ADM" }[r.src] || "";
+  const src = { anilist: "AniList", mangaplus: "MANGA Plus", webtoon: "WEBTOON", jumpplus: "Shonen Jump+", adm: "ADM" }[r.src] || "";
   return h("section", { class: "relbox", "aria-label": L("Lançamentos", "Releases") },
     h("h3", {}, L("Lançamentos", "Releases")),
     r.num != null
@@ -1000,7 +1003,7 @@ function editForm(w) {
     const newLinks = [0, 1, 2].map(i => ({ site: g("ls" + i), url: g("lu" + i) })).filter(l => l.site || l.url);
     if (newLinks.some(l => !/^https?:\/\//.test(l.url) || !l.site)) { fail(L("Cada site oficial precisa de nome e de um link começando com https://", "Each official site needs a name and a link starting with https://")); return; }
     const feedIn = g("feed"); const feed = feedIn ? feedFromUrl(feedIn) : "";
-    if (feedIn && !feed) { fail(L("Esse link não é do MANGA Plus nem do WEBTOON.", "That link isn't from MANGA Plus or WEBTOON.")); return; }
+    if (feedIn && !feed) { fail(L("Esse link não é do MANGA Plus, WEBTOON nem Shonen Jump+.", "That link isn't from MANGA Plus, WEBTOON or Shonen Jump+.")); return; }
     const linksChanged = JSON.stringify(newLinks.map(l => [l.site, l.url])) !== JSON.stringify(links.map(l => [l.site, l.url]));
     const patch = {
       title, alt_titles: g("alt"), format: g("tipo"), total: g("total") ? Math.max(0, Number(g("total")) || 0) : null, status: g("situ"),
@@ -1024,7 +1027,7 @@ function editForm(w) {
     f("generos", L("Gêneros (separados por vírgula)", "Genres (comma separated)"), w.genres, "full"),
     h("label", { class: "field full" }, L("Sinopse em português", "Synopsis in Portuguese"), h("textarea", { id: "we-syn" }, w.synopsis || "")),
     h("label", { class: "field full" }, L("Sinopse em inglês", "Synopsis in English"), h("textarea", { id: "we-synen" }, w.synopsis_en || "")),
-    f("feed", L("Link do MANGA Plus ou WEBTOON (atualiza o capítulo sozinho)", "MANGA Plus or WEBTOON link (updates chapters automatically)"), w.feed ? feedToUrl(w.feed) : "", "full", "url"),
+    f("feed", L("Link do MANGA Plus, WEBTOON ou Shonen Jump+ (atualiza o capítulo sozinho)", "MANGA Plus, WEBTOON or Shonen Jump+ link (updates chapters automatically)"), w.feed ? feedToUrl(w.feed) : "", "full", "url"),
     h("fieldset", { class: "full links-edit" }, h("legend", {}, L("Sites oficiais (até 3)", "Official sites (up to 3)")),
       h("p", { class: "note" }, L("Se você mudar estes links, a atualização automática não troca mais.", "If you change these links, the automatic update won't replace them.")),
       ...[0, 1, 2].map(i => h("div", { class: "linkrow" },
