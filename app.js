@@ -417,11 +417,46 @@ function freeSlug(kind, title) {
   while (taken.has(slug)) slug = slugify(title).slice(0, 95) + "-" + (n++);
   return slug;
 }
+// tradução gratuita na hora (se falhar, o robô traduz depois)
+async function translateNow(text) {
+  if (!text) return "";
+  const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("tempo")), ms))]);
+  const parts = [];
+  for (const para of text.split(/\n{2,}/)) {
+    let cur = "";
+    for (const s of (para.replace(/\n/g, " ").match(/[^.!?]+[.!?]+["')\]]*\s*|[^.!?]+$/g) || [para])) {
+      if ((cur + s).length > 450 && cur) { parts.push(cur.trim()); cur = ""; }
+      cur += s;
+    }
+    if (cur.trim()) parts.push(cur.trim());
+    parts.push("\n\n");
+  }
+  parts.pop();
+  const one = async c => {
+    try {
+      const j = await withTimeout(fetch("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(c.slice(0, 480)) + "&langpair=en|pt-BR").then(r => r.json()), 6000);
+      const t = j && j.responseData && j.responseData.translatedText;
+      if (Number(j.responseStatus) === 200 && t && !/MYMEMORY WARNING|LIMIT|INVALID/i.test(t)) return t;
+    } catch {}
+    const j = await withTimeout(fetch("https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt&dt=t&q=" + encodeURIComponent(c)).then(r => r.json()), 6000);
+    return j[0].map(x => x[0]).join("");
+  };
+  let out = "";
+  for (const c of parts) out += c === "\n\n" ? "\n\n" : (await one(c)).trim() + " ";
+  return out.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").trim().slice(0, 5900);
+}
+// qualquer pessoa logada adiciona obras do AniList (dados oficiais); só o ADM edita ou apaga
 async function addFromAnilist(a, status) {
-  if (!isAdm()) { fail(L("Só o ADM adiciona obras.", "Only the admin can add titles.")); return null; }
+  if (!canEdit()) { openLogin(); return null; }
   try {
     let w = [...works.values()].find(x => x.anilist_id === a.anilist_id);
-    if (!w) { w = await api.insertWork({ ...a, slug: freeSlug(a.kind, a.title), created_by: me.id }); works.set(w.id, w); ok(L("Adicionado ao site: ", "Added to the site: ") + w.title); }
+    if (!w) {
+      toast(L("Adicionando “", "Adding “") + a.title + L("” ao site…", "” to the site…"));
+      const row = { ...a, slug: freeSlug(a.kind, a.title), created_by: me.id };
+      try { const pt = await translateNow(a.synopsis_en); if (pt) { row.synopsis = pt; row.syn_src = "gratis"; } } catch {}
+      w = await api.insertWork(row); works.set(w.id, w);
+      ok(L("Adicionado ao site: ", "Added to the site: ") + w.title);
+    }
     if (status) { if (await setItem(w, { status })) ok(w.title + ": " + stLabel(status, w.kind)); }
     render();
     return w;
@@ -501,7 +536,7 @@ function render() {
   if (is404) renderNotFound();
   else if (isWork) renderWork();
   else {
-    $("q").placeholder = isAdm() ? L("Buscar ou adicionar ", "Search or add ") + KINDS[cat].one() + "…" : L("Buscar ", "Search ") + KINDS[cat].one() + L(" no site…", " on the site…");
+    $("q").placeholder = canEdit() ? L("Buscar ou adicionar ", "Search or add ") + KINDS[cat].one() + "…" : L("Buscar ", "Search ") + KINDS[cat].one() + "…";
     $("addbtn").hidden = !isAdm();
     renderCats(); renderSeg(); renderFilters(); renderList(); if (suggOpen) renderSugg();
     document.title = KINDS[cat].label() + " · " + L("Lista de Animes do Betoro-chan", "Betoro-chan's Anime List");
@@ -608,7 +643,7 @@ function renderList() {
       az: (a, b) => a.w.title.localeCompare(b.w.title, locale()),
     };
     ws.sort(by[sortBy] || by.lancou);
-    if (!ws.length) { ul.replaceChildren(empty(L("O catálogo está vazio", "The catalog is empty"), isAdm() ? L("Use a busca lá em cima para adicionar obras do AniList.", "Use the search above to add titles from AniList.") : L("O ADM ainda vai adicionar as obras.", "The admin will add titles soon."))); return; }
+    if (!ws.length) { ul.replaceChildren(empty(L("O catálogo está vazio", "The catalog is empty"), L("Use a busca lá em cima: ao marcar uma obra, ela entra no site.", "Use the search above: marking a title adds it to the site."))); return; }
   }
   ul.replaceChildren(...ws.slice(0, shown).map(x => workCard(x.w, x.s)));
   if (ws.length > shown) more.replaceChildren(h("button", { class: "btn alt", type: "button", onclick: () => { shown += PAGE; render(); } }, L("Mostrar mais", "Show more") + " (" + (ws.length - shown) + ")"));
@@ -697,12 +732,12 @@ function renderSugg() {
       canEdit() ? h("div", { class: "sts" }, ST.map(st => h("button", { class: "st s-" + st + (m && m.status === st ? " on" : ""), type: "button", onclick: async () => { closeSearch(); if (await setItem(w, { status: st })) ok(w.title + ": " + stLabel(st, w.kind)); } }, stLabel(st, w.kind))),
         h("a", { class: "link", href: workHref(w), "data-link": true }, L("Ver página", "Open page"))) : null);
   });
-  if (!res.length) kids.push(h("p", { class: "hint" }, isAdm() ? L("Ainda não está no site.", "Not on the site yet.") : L("Essa obra ainda não está no site. Só o ADM adiciona obras novas: peça para ele!", "This title isn't on the site yet. Only the admin adds new titles, so ask them!")));
-  if (isAdm()) {
+  if (!res.length) kids.push(h("p", { class: "hint" }, L("Ainda não está no site.", "Not on the site yet.")));
+  if (canEdit()) {
     queueAnilist(raw.trim());
     const shownIds = new Set(res.map(x => x.w.anilist_id).filter(Boolean));
     const onSite = new Map([...works.values()].filter(w => w.anilist_id).map(w => [w.anilist_id, w]));
-    kids.push(h("p", { class: "sg-sec" }, L("ADM · adicionar do AniList", "Admin · add from AniList")));
+    kids.push(h("p", { class: "sg-sec" }, L("Do AniList · marque e a obra entra no site", "From AniList · mark it and it joins the site")));
     if (alErr) kids.push(h("p", { class: "hint" }, L("Não deu para buscar no AniList agora. Tente de novo em instantes.", "Couldn't search AniList right now. Try again shortly.")));
     else if (!alRes) kids.push(h("p", { class: "hint" }, L("Buscando…", "Searching…")));
     else {
@@ -715,16 +750,16 @@ function renderSugg() {
             h("div", { class: "sg-t" }, h("b", {}, a.title), h("small", {}, alSummary(a)), a.alt_titles ? h("small", {}, a.alt_titles) : null),
             there ? h("span", { class: "autotag" }, L("já no site", "on site")) : null),
           h("div", { class: "sts" },
-            h("button", { class: "btn small", type: "button", onclick: async () => { closeSearch(); const w = await addFromAnilist(a, null); if (w) go(workHref(w)); } }, there ? L("Abrir", "Open") : L("Adicionar ao site", "Add to site")),
-            ...ST.map(st => h("button", { class: "st s-" + st, type: "button", title: L("Adicionar e marcar na minha lista", "Add and mark on my list"), onclick: async () => { closeSearch(); await addFromAnilist(a, st); } }, stLabel(st, a.kind))))));
+            ...ST.map(st => h("button", { class: "st s-" + st, type: "button", onclick: async () => { closeSearch(); await addFromAnilist(a, st); } }, stLabel(st, a.kind))),
+            h("button", { class: "link", type: "button", onclick: async () => { closeSearch(); const w = await addFromAnilist(a, null); if (w) go(workHref(w)); } }, L("Ver página", "Open page")))));
       }
     }
-    kids.push(h("button", { class: "new", type: "button", onclick: () => {
+    if (isAdm()) kids.push(h("button", { class: "new", type: "button", onclick: () => {
       draft = { t: raw.trim(), k: cat, s: "visto" }; closeSearch(); renderNew();
       setTimeout(() => { const el = $("nf-sub"); if (el) el.focus(); });
     } }, L("+ Não achei: adicionar “", "+ Not found: add “") + raw.trim() + L("” à mão", "” manually")));
   }
-  if (!canEdit()) kids.push(h("p", { class: "hint" }, h("button", { class: "link", type: "button", "data-login": true }, L("Entre na sua conta", "Sign in")), L(" para marcar na sua lista.", " to add to your list.")));
+  if (!canEdit()) kids.push(h("p", { class: "hint" }, h("button", { class: "link", type: "button", "data-login": true }, L("Entre na sua conta", "Sign in")), L(" para marcar e adicionar obras.", " to mark and add titles.")));
   box.replaceChildren(...kids); box.hidden = false;
 }
 function closeSearch() { suggOpen = false; $("q").value = ""; $("sugg").hidden = true; }

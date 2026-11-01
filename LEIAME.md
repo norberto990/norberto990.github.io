@@ -11,7 +11,8 @@ Tudo aqui é **grátis**: GitHub, Supabase, AniList, MANGA Plus, Webtoon e a tra
   - **O resto:** você, como ADM, atualiza à mão na página da obra ("Atualizar lançamento").
 - **Sinopse em português:** tradução automática gratuita, poucos minutos depois de adicionar a obra. Dá para corrigir em "Editar informações".
 - **Botão PT / EN:** troca o site inteiro.
-- **ADM:** só você adiciona, edita e apaga obras e pode apagar qualquer comentário. Os outros marcam a lista deles, dão nota e comentam.
+- **Obras novas:** qualquer pessoa com conta busca a obra e, ao marcar (Vi, Assistindo…), ela entra no site sozinha, com os dados oficiais do AniList e a sinopse já traduzida.
+- **ADM:** você corrige capítulos quando a busca automática errar, edita ou apaga obras e pode apagar qualquer comentário.
 - **Para quem está na sua lista:** aparece "você está 2 atrás" quando já saiu episódio ou capítulo que a pessoa ainda não viu.
 - **As 20 correções do vídeo:** página 404, rodapé com o ano, favicon, ícone para a tela inicial do celular, imagem de prévia ao compartilhar o link, mensagens de sucesso (verde) e de erro (vermelho), sem rolagem lateral no celular e botões maiores para o toque, entre outras.
 
@@ -54,7 +55,7 @@ Espere 1 ou 2 minutos e recarregue o site com **Ctrl+F5**.
 
 ## Como usar como ADM
 
-- **Adicionar obra:** digite o nome na busca. Aparece a parte **"ADM · adicionar do AniList"**. Clique em **Adicionar ao site**, ou direto em **Vi / Assistindo / …** para adicionar e já marcar na sua lista. A obra entra com capa, sinopse, episódios ou capítulos, sites oficiais e a fonte automática.
+- **Adicionar obra (qualquer pessoa com conta):** digite o nome na busca. Na parte **"Do AniList"**, clique em **Vi / Assistindo / …** e a obra entra no site já marcada na sua lista, ou em **Ver página**. Ela entra com capa, sinopse em português, episódios ou capítulos, sites oficiais e a fonte automática.
 - **Obra que não está no AniList:** use **+ Adicionar à mão**. Se ela estiver no MANGA Plus ou no WEBTOON, cole o link no campo indicado, e os capítulos passam a atualizar sozinhos.
 - **Na página de cada obra** (só você vê o quadro **ADM**):
   - **Atualizar lançamento:** para obras sem fonte automática, ou para corrigir.
