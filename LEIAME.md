@@ -1,102 +1,79 @@
-# Lista de Animes do Betoro-chan: como colocar no ar
+# Lista de Animes do Betoro-chan: versão 2
 
-Leva uns 20 minutos e é tudo grátis. Você vai criar duas contas:
+Tudo aqui é **grátis**: GitHub, Supabase, AniList, MANGA Plus, Webtoon e a tradução da sinopse. Não precisa de cartão.
 
-- **Supabase**: guarda as listas, os comentários, as imagens e cuida do login.
-- **GitHub**: hospeda o site e roda a atualização das 9:30 todo dia.
+## O que mudou
 
-No fim, o site fica em `https://SEUUSUARIO.github.io`.
-
----
-
-## Parte 1: Supabase (banco de dados)
-
-1. Entre em **supabase.com** e crie uma conta (pode ser com o GitHub).
-2. Clique em **New project**.
-   - Nome: `betoro-chan`
-   - Senha do banco: invente uma e guarde.
-   - Região: **South America (São Paulo)**.
-   - Clique em **Create new project** e espere uns 2 minutos.
-3. No menu da esquerda, abra **SQL Editor** e clique em **New query**.
-4. Abra o arquivo `supabase/schema.sql` desta pasta, copie **tudo**, cole lá e clique em **Run**.
-   Tem que aparecer "Success. No rows returned".
-5. Abra **Authentication > Sign In / Providers > Email**.
-   - Deixe **Enable Email provider** ligado.
-   - **Desligue "Confirm email"** e salve. O e-mail grátis do Supabase só manda poucas mensagens por hora, então sem isso seus amigos podem ficar sem conseguir entrar.
-6. Abra **Project Settings > API Keys** e anote três coisas:
-   - **Project URL** (aparece também em **Project Settings > Data API**), algo como `https://abcdefgh.supabase.co`
-   - a chave **publishable** (ou **anon public**, na aba "Legacy API keys"). Essa é pública.
-   - a chave **secret** (ou **service_role**, na aba "Legacy API keys"). Essa é **secreta**: só vai no GitHub, no passo 12. Nunca coloque no `config.js`.
-
-## Parte 2: ligar o site ao banco
-
-7. Abra o arquivo `config.js` em um editor de texto (o Bloco de Notas serve) e troque:
-   - `COLE_AQUI_A_PROJECT_URL` pela Project URL
-   - `COLE_AQUI_A_CHAVE_ANON_PUBLIC` pela chave publishable (ou anon)
-
-   Salve o arquivo.
-
-## Parte 3: GitHub (site no ar)
-
-8. Entre em **github.com** e crie uma conta. O nome de usuário vira o endereço do site, então escolha bem (ex.: `betorochan` dá `betorochan.github.io`).
-9. Clique em **+ > New repository**.
-   - Repository name: **exatamente** `SEUUSUARIO.github.io` (troque pelo seu usuário, tudo minúsculo).
-   - Deixe **Public**.
-   - Clique em **Create repository**.
-10. Na página do repositório, clique em **uploading an existing file**. Arraste **estes arquivos**:
-    `index.html`, `404.html`, `style.css`, `app.js`, `config.js` e as pastas `scripts` e `supabase`.
-    Clique em **Commit changes**.
-11. Agora crie o arquivo da atualização diária. A pasta dele começa com ponto e costuma ficar escondida, então é mais fácil criar pelo site:
-    - Clique em **Add file > Create new file**.
-    - No nome, digite exatamente: `.github/workflows/atualizar.yml`
-    - Abra o arquivo `.github/workflows/atualizar.yml` desta pasta, copie tudo e cole.
-    - Clique em **Commit changes**.
-12. Coloque as chaves secretas: **Settings > Secrets and variables > Actions > New repository secret**. Crie dois:
-    - Nome `SUPABASE_URL`, valor: a Project URL
-    - Nome `SUPABASE_SERVICE_KEY`, valor: a chave **secret** (ou service_role)
-13. Ligue o site: **Settings > Pages**. Em "Build and deployment", escolha **Deploy from a branch**, branch **main**, pasta **/(root)** e clique em **Save**.
-    Em 1 ou 2 minutos o site abre em `https://SEUUSUARIO.github.io`.
-
-## Parte 4: últimos ajustes
-
-14. No Supabase, abra **Authentication > URL Configuration**:
-    - **Site URL**: `https://SEUUSUARIO.github.io`
-    - Em **Redirect URLs**, adicione `https://SEUUSUARIO.github.io/**`
-
-    Sem isso, o link de "Esqueci a senha" não volta para o site.
-15. Rode a primeira atualização sem esperar até as 9:30: no GitHub, abra a aba **Actions**, clique em **Atualizar obras (todo dia 9:30)**, depois em **Run workflow** e confirme.
-    Em 1 ou 2 minutos, o **Catálogo** do site fica cheio de novidades.
-16. Abra o site, clique em **Entrar ou criar conta > Criar conta**, e mande o link para a galera.
+- **Lançamentos:** cada obra mostra o último episódio ou capítulo e até 3 sites oficiais onde assistir ou ler. A atualização roda a cada 15 minutos.
+  - **Animes:** horário oficial de exibição (AniList). Na hora exata, o site mostra "Ep. X saiu!" e a contagem para o próximo.
+  - **Mangás da Shueisha** (One Piece, Jujutsu Kaisen etc.): capítulo pelo MANGA Plus oficial, com link direto para o capítulo.
+  - **Webtoons:** pelo feed oficial do WEBTOON.
+  - **O resto:** você, como ADM, atualiza à mão na página da obra ("Atualizar lançamento").
+- **Sinopse em português:** tradução automática gratuita, poucos minutos depois de adicionar a obra. Dá para corrigir em "Editar informações".
+- **Botão PT / EN:** troca o site inteiro.
+- **ADM:** só você adiciona, edita e apaga obras e pode apagar qualquer comentário. Os outros marcam a lista deles, dão nota e comentam.
+- **Para quem está na sua lista:** aparece "você está 2 atrás" quando já saiu episódio ou capítulo que a pessoa ainda não viu.
+- **As 20 correções do vídeo:** página 404, rodapé com o ano, favicon, ícone para a tela inicial do celular, imagem de prévia ao compartilhar o link, mensagens de sucesso (verde) e de erro (vermelho), sem rolagem lateral no celular e botões maiores para o toque, entre outras.
 
 ---
 
-## Como funciona a atualização das 9:30
+## Como atualizar (você já tem a versão 1 no ar)
 
-Todo dia às 9:30 (horário de Brasília), o GitHub roda o arquivo `scripts/sync.mjs`. Ele faz três coisas:
+### 1. Banco de dados (Supabase)
+1. Abra **SQL Editor > New query**.
+2. Copie **todo** o arquivo `supabase/schema.sql` desta pasta, cole e clique em **Run**. Tem que aparecer "Success".
+   - Pode rodar sem medo: não apaga listas, obras nem comentários.
 
-1. Busca no **AniList** os animes, mangás e novels que começaram nos últimos 45 dias e adiciona os mais populares ao Catálogo, com capa, sinopse, gêneros e número de episódios ou capítulos.
-2. Atualiza a situação e o total de episódios das obras que ainda estão saindo.
-3. Completa as obras que a galera cadastrou na mão (até 15 por dia): procura a obra no AniList e preenche o que estiver vazio, sem apagar o que alguém escreveu.
+### 2. Tornar você o ADM
+1. Abra o site e **crie sua conta**, se ainda não criou.
+2. No Supabase, em **SQL Editor > New query**, cole a linha abaixo trocando `SEU-EMAIL` pelo e-mail que você usou no site:
 
-Bom saber:
-- A **sinopse vem em inglês**, porque é assim que o AniList fornece. Qualquer pessoa logada pode trocar por uma em português em "Editar informações".
-- O GitHub às vezes atrasa a tarefa agendada em alguns minutos.
-- **Se o repositório ficar 60 dias sem nenhuma mudança, o GitHub pausa a tarefa** e manda um e-mail avisando. Para religar, é só abrir a aba Actions e clicar em "Enable workflow".
-- Para mudar quantas obras entram por dia, edite os números no começo de `scripts/sync.mjs` (`LIMIT_ANIME`, `LIMIT_MANGA`, `LIMIT_NOVEL`).
+   ```sql
+   update public.profiles set is_admin = true where id = (select id from auth.users where email = 'SEU-EMAIL');
+   ```
+3. Clique em **Run**. Tem que aparecer "Success. 1 row affected" (ou parecido).
+4. Recarregue o site: ao lado do seu nome aparece a etiqueta vermelha **ADM**.
 
-## Opcional: login com Google
+### 3. Arquivos do site (GitHub)
+1. No repositório `norberto990.github.io`, clique em **Add file > Upload files**.
+2. Arraste **tudo** desta pasta, menos a pasta `.github`: `index.html`, `404.html`, `app.js`, `style.css`, `config.js`, `favicon.svg`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, `og.png`, `site.webmanifest`, `LEIAME.md` e as pastas `scripts` e `supabase`.
+3. Clique em **Commit changes**. Os arquivos com o mesmo nome são substituídos.
 
-Exige criar credenciais no Google Cloud, então só vale se a galera pedir. No Supabase, abra **Authentication > Sign In / Providers > Google** e siga as instruções da própria página. Depois, mude `GOOGLE_LOGIN: false` para `true` no `config.js` e envie o arquivo de novo para o GitHub.
+### 4. Atualização a cada 15 minutos
+1. No repositório, abra a pasta **.github > workflows** e clique no arquivo **atualizar.yml**.
+2. Clique no **lápis** (Edit), apague todo o texto, cole o conteúdo do arquivo `.github/workflows/atualizar.yml` desta pasta e clique em **Commit changes**.
+3. Confira as chaves secretas em **Settings > Secrets and variables > Actions**. Precisam existir:
+   - `SUPABASE_URL`: a Project URL do Supabase
+   - `SUPABASE_SERVICE_KEY`: a chave **secret** do Supabase (nunca coloque essa no `config.js`)
+   - Opcional: `MYMEMORY_EMAIL`, com qualquer e-mail seu. Deixa a cota grátis de tradução 10 vezes maior.
+4. Rode a primeira vez na mão: aba **Actions > Atualizar lançamentos (a cada 15 min) > Run workflow**.
 
-## Opcional: domínio próprio (ex.: betorochan.com.br)
+Espere 1 ou 2 minutos e recarregue o site com **Ctrl+F5**.
 
-1. Compre o domínio no registro.br.
-2. No GitHub: **Settings > Pages > Custom domain**, digite o domínio e salve.
-3. No registro.br, configure o DNS seguindo a ajuda do GitHub ("Managing a custom domain for your GitHub Pages site").
-4. No Supabase, troque a **Site URL** e as **Redirect URLs** do passo 14 pelo domínio novo.
+---
+
+## Como usar como ADM
+
+- **Adicionar obra:** digite o nome na busca. Aparece a parte **"ADM · adicionar do AniList"**. Clique em **Adicionar ao site**, ou direto em **Vi / Assistindo / …** para adicionar e já marcar na sua lista. A obra entra com capa, sinopse, episódios ou capítulos, sites oficiais e a fonte automática.
+- **Obra que não está no AniList:** use **+ Adicionar à mão**. Se ela estiver no MANGA Plus ou no WEBTOON, cole o link no campo indicado, e os capítulos passam a atualizar sozinhos.
+- **Na página de cada obra** (só você vê o quadro **ADM**):
+  - **Atualizar lançamento:** para obras sem fonte automática, ou para corrigir.
+  - **Editar informações:** nome, sinopse em português e inglês, capa, sites oficiais (até 3) e o link do MANGA Plus ou WEBTOON.
+  - **Completar com o AniList:** para obras adicionadas à mão.
+  - **Apagar obra:** pede confirmação, porque apaga também das listas e os comentários.
+- **Comentários:** você vê **Apagar (ADM)** em qualquer comentário.
+
+## Bom saber
+
+- Só indicamos **sites oficiais**: os links vêm do AniList, que só aceita fontes oficiais, ou de você.
+- O GitHub às vezes atrasa a tarefa agendada em alguns minutos quando está cheio.
+- O Supabase grátis pausa projetos parados por uma semana. Como a atualização roda a cada 15 minutos, isso não acontece.
+- Se o GitHub desligar a tarefa agendada (ele avisa por e-mail), abra a aba **Actions** e clique em **Enable workflow**. O próprio robô também avisa o GitHub uma vez por dia que a tarefa está em uso.
+- A tradução gratuita tem cota diária. Se acabar, as sinopses continuam em inglês até o dia seguinte, e o robô tenta de novo sozinho.
 
 ## Se algo der errado
 
-- **O site mostra "ainda não foi ligado ao banco de dados"**: o `config.js` não foi preenchido, ou o arquivo enviado ao GitHub é a versão antiga.
-- **"Você precisa entrar na sua conta para fazer isso"** mesmo logado: o `schema.sql` não rodou inteiro. Rode de novo (pode rodar quantas vezes quiser).
-- **A atualização falhou**: abra a aba Actions, clique na execução com ❌ e leia o fim do registro. Quase sempre é um segredo com o nome errado no passo 12.
+- **Não aparece "ADM" ao lado do seu nome:** o e-mail do passo 2 tem que ser exatamente o da sua conta no site. Rode a linha de novo.
+- **"Você não tem permissão para isso":** só o ADM adiciona ou edita obras. Se for você, faça o passo 2.
+- **A atualização falhou:** aba **Actions**, clique na execução com ❌ e leia o final. Quase sempre é um segredo com o nome errado.
+- **O site mostra "ainda não foi ligado ao banco de dados":** o `config.js` enviado está sem as chaves. Envie o desta pasta.
