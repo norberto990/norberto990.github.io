@@ -311,3 +311,5 @@ a.cat{color:var(--muted)}
 a.cat[aria-selected="true"]{color:var(--on)}
 a.icon{text-decoration:none}
 .auth .btn,.mine-box .btn{background:var(--brand);color:#fff}
+.sg-sec{margin:0;padding:8px 14px 6px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:var(--raise);border-top:1px solid var(--line)}
+.sg-t small + small{opacity:.8}

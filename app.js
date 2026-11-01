@@ -448,6 +448,93 @@ function workCard(w, s) {
   return card;
 }
 
+/* ---------------- AniList (busca de informações) ---------------- */
+const AL_KINDS = {
+  anime: { type: "ANIME", formats: ["TV", "TV_SHORT", "MOVIE", "ONA", "OVA", "SPECIAL"] },
+  manga: { type: "MANGA", formats: ["MANGA", "ONE_SHOT"] },
+  novel: { type: "MANGA", formats: ["NOVEL"] },
+};
+const AL_FORMAT = { TV: "TV", TV_SHORT: "TV (curto)", MOVIE: "Filme", ONA: "ONA", OVA: "OVA", SPECIAL: "Especial", MANGA: "Mangá", ONE_SHOT: "One-shot", NOVEL: "Light novel" };
+const AL_STATUS = { FINISHED: "Finalizado", RELEASING: "Em lançamento", NOT_YET_RELEASED: "Ainda não lançado", CANCELLED: "Cancelado", HIATUS: "Em hiato" };
+const AL_SOURCE = { ORIGINAL: "Original", MANGA: "Mangá", LIGHT_NOVEL: "Light novel", WEB_NOVEL: "Web novel", NOVEL: "Novel", VISUAL_NOVEL: "Visual novel", VIDEO_GAME: "Jogo", GAME: "Jogo", WEB_MANGA: "Web mangá", OTHER: "Outro" };
+const AL_GENRE = { Action: "Ação", Adventure: "Aventura", Comedy: "Comédia", Drama: "Drama", Ecchi: "Ecchi", Fantasy: "Fantasia", Horror: "Terror", "Mahou Shoujo": "Mahou Shoujo", Mecha: "Mecha", Music: "Música", Mystery: "Mistério", Psychological: "Psicológico", Romance: "Romance", "Sci-Fi": "Ficção científica", "Slice of Life": "Slice of life", Sports: "Esportes", Supernatural: "Sobrenatural", Thriller: "Suspense" };
+const AL_FIELDS = `id idMal format status episodes chapters volumes source isAdult
+  title { romaji english native } synonyms startDate { year }
+  genres coverImage { extraLarge large } description(asHtml: false)
+  studios(isMain: true) { nodes { name } }
+  staff(perPage: 3, sort: RELEVANCE) { edges { role node { name { full } } } }`;
+const alCache = new Map();
+async function anilistSearch(q, kind) {
+  const key = kind + ":" + norm(q);
+  if (alCache.has(key)) return alCache.get(key);
+  const k = AL_KINDS[kind];
+  const p = fetch("https://graphql.anilist.co", {
+    method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ query: `query($q: String, $type: MediaType, $f: [MediaFormat]) { Page(perPage: 6) { media(search: $q, type: $type, format_in: $f, isAdult: false, sort: SEARCH_MATCH) { ${AL_FIELDS} } } }`, variables: { q, type: k.type, f: k.formats } }),
+  }).then(r => r.ok ? r.json() : Promise.reject(new Error("anilist " + r.status)))
+    .then(j => ((j.data && j.data.Page && j.data.Page.media) || []).filter(m => !m.isAdult).map(m => alToWork(m, kind)));
+  alCache.set(key, p); p.catch(() => alCache.delete(key));
+  return p;
+}
+function alToWork(m, kind) {
+  const title = m.title.romaji || m.title.english || m.title.native;
+  const alts = [m.title.english, m.title.native, ...(m.synonyms || [])].filter(Boolean).filter((v, i, a) => v !== title && a.indexOf(v) === i);
+  let alt = ""; for (const a of alts) { if ((alt + " · " + a).length > 590) break; alt = alt ? alt + " · " + a : a; }
+  const author = kind === "anime" ? ((m.studios && m.studios.nodes) || []).map(x => x.name).join(", ")
+    : ((m.staff && m.staff.edges) || []).filter(e => /story|original|art/i.test(e.role)).map(e => e.node.name.full).filter((v, i, a) => a.indexOf(v) === i).join(", ");
+  const syn = String(m.description || "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&#039;/g, "'").replace(/\n{3,}/g, "\n\n").trim().slice(0, 5900);
+  return {
+    kind, title: title.slice(0, 160), alt_titles: alt,
+    cover_url: (m.coverImage && (m.coverImage.extraLarge || m.coverImage.large)) || null,
+    synopsis: syn, genres: (m.genres || []).map(g => AL_GENRE[g] || g).join(", ").slice(0, 300),
+    format: AL_FORMAT[m.format] || m.format || "",
+    total: kind === "anime" ? (m.episodes ?? null) : kind === "novel" ? (m.volumes ?? m.chapters ?? null) : (m.chapters ?? null),
+    status: AL_STATUS[m.status] || "", year: (m.startDate && m.startDate.year) || null,
+    studio: author.slice(0, 200), source: AL_SOURCE[m.source] || "",
+    anilist_id: m.id, mal_id: m.idMal ?? null,
+  };
+}
+function alSummary(a) {
+  const U = UNIT[a.kind];
+  return [a.format, a.year, a.total ? a.total + " " + U[0].toLowerCase() : null, a.status].filter(Boolean).join(" · ");
+}
+// cria (ou reaproveita) a obra a partir de um resultado do AniList
+async function workFromAnilist(a) {
+  let w = [...works.values()].find(x => x.anilist_id === a.anilist_id) || findWork(a.kind, a.title);
+  if (w) {
+    const patch = {}; for (const k of ["cover_url", "synopsis", "genres", "format", "status", "studio", "source", "alt_titles"]) if (!w[k] && a[k]) patch[k] = a[k];
+    if (w.total == null && a.total != null) patch.total = a.total;
+    if (w.year == null && a.year != null) patch.year = a.year;
+    if (Object.keys(patch).length) { w = await api.updateWork(w.id, patch); works.set(w.id, w); }
+    return w;
+  }
+  let slug = slugify(a.title), n = 2;
+  const taken = new Set([...works.values()].filter(x => x.kind === a.kind).map(x => x.slug));
+  while (taken.has(slug)) slug = slugify(a.title).slice(0, 95) + "-" + (n++);
+  w = await api.insertWork({ ...a, slug, created_by: me.id });
+  works.set(w.id, w); return w;
+}
+async function addFromAnilist(a, status) {
+  if (!canEdit()) { openLogin(); return; }
+  try {
+    const w = await workFromAnilist(a);
+    if (status) { await setItem(w, { status }); toast(w.title + ": " + stLabel(status, w.kind)); }
+    return w;
+  } catch (e) { toast(errMsg(e)); }
+}
+let alQ = "", alRes = null, alErr = false, alT = null;
+function queueAnilist(q) {
+  const key = cat + "|" + q;
+  if (key === alQ) return;
+  alQ = key; alRes = null; alErr = false; clearTimeout(alT);
+  if (q.length < 2) return;
+  alT = setTimeout(async () => {
+    const mine = key, kind = cat;
+    try { const r = await anilistSearch(q, kind); if (alQ === mine) { alRes = r; if (suggOpen) renderSugg(); } }
+    catch { if (alQ === mine) { alErr = true; if (suggOpen) renderSugg(); } }
+  }, 450);
+}
+
 /* ---------------- busca e sugestões ---------------- */
 function renderSugg() {
   const box = $("sugg"), raw = $("q").value, q = norm(raw);
@@ -465,10 +552,26 @@ function renderSugg() {
         h("a", { class: "link", href: workHref(w), "data-link": true }, m ? "Nota e progresso" : "+ nota e progresso")) : null);
   });
   if (!res.length) kids.push(h("p", { class: "hint" }, "Nada parecido no site ainda."));
+  queueAnilist(raw.trim());
+  const onSite = new Set([...works.values()].map(w => w.anilist_id).filter(Boolean));
+  const shownIds = new Set(res.map(x => x.w.anilist_id).filter(Boolean));
+  kids.push(h("p", { class: "sg-sec" }, "Encontrado no AniList"));
+  if (alErr) kids.push(h("p", { class: "hint" }, "Não deu para buscar no AniList agora."));
+  else if (!alRes) kids.push(h("p", { class: "hint" }, "Buscando…"));
+  else {
+    const al = alRes.filter(a => !shownIds.has(a.anilist_id)).slice(0, 5);
+    if (!al.length) kids.push(h("p", { class: "hint" }, "Nada novo encontrado."));
+    for (const a of al) kids.push(h("div", { class: "sg" },
+      h("div", { class: "sg-head" }, coverEl(a.cover_url, "sm"),
+        h("div", { class: "sg-t" }, h("b", {}, a.title), h("small", {}, alSummary(a)), a.alt_titles ? h("small", {}, a.alt_titles) : null),
+        onSite.has(a.anilist_id) ? h("span", { class: "autotag" }, "já no site") : null),
+      canEdit() ? h("div", { class: "sts" }, ST.map(st => h("button", { class: "st s-" + st, type: "button", onclick: async () => { closeSearch(); await addFromAnilist(a, st); } }, stLabel(st, a.kind))),
+        h("button", { class: "link", type: "button", onclick: async () => { closeSearch(); const w = await addFromAnilist(a, null); if (w) go(workHref(w)); } }, "Ver página")) : null));
+  }
   if (canEdit() && !exact) kids.push(h("button", { class: "new", type: "button", onclick: () => {
     draft = { t: raw.trim(), sub: "", s: "visto", n: null, k: cat }; closeSearch(); renderNew();
     setTimeout(() => { const el = $("nf-sub"); if (el) el.focus(); });
-  } }, "+ Adicionar “" + raw.trim() + "” como novo " + KINDS[cat].one));
+  } }, "+ Não achei: adicionar “" + raw.trim() + "” à mão"));
   if (!canEdit()) kids.push(h("p", { class: "hint" }, h("button", { class: "link", type: "button", "data-login": true }, "Entre na sua conta"), " para marcar ou adicionar."));
   box.replaceChildren(...kids); box.hidden = false;
 }
@@ -594,6 +697,7 @@ function renderWork() {
       w.genres ? h("div", { class: "chips" }, w.genres.split(/\s*,\s*/).map(g => h("span", {}, g))) : null,
       canEdit() ? h("div", {}, h("button", { class: "link", type: "button", onclick: () => { wvEdit = !wvEdit; wvEditImg = null; render(); } }, wvEdit ? "Fechar edição" : "Editar informações")) : null,
       wvEdit && canEdit() ? editForm(w, U) : null,
+      canEdit() && !w.anilist_id ? alLinkBox(w) : null,
       w.auto ? h("p", { class: "note" }, "Informações trazidas do AniList pela atualização diária. Qualquer pessoa logada pode corrigir.") : null];
   } else if (wvTab === "galera") {
     const ws2 = [...s.who].sort((a, b) => ST.indexOf(a.status) - ST.indexOf(b.status));
@@ -611,6 +715,36 @@ function renderWork() {
     h("div", { class: "wv-top" }, h("a", { class: "wv-back", href: homePath(), "data-link": true, style: "text-decoration:none" }, "← " + KINDS[k].label)),
     h("header", { class: "wv-title" }, h("h1", {}, w.title), h("p", {}, cap(KINDS[k].one) + (w.alt_titles ? " · " + w.alt_titles : ""))),
     tabs, h("div", { class: "wv-grid" }, side, h("main", { style: "display:flex;flex-direction:column;gap:14px;min-width:0" }, ...body))));
+}
+let alLink = null; // { wid, res, err }
+function alLinkBox(w) {
+  const st = alLink && alLink.wid === w.id ? alLink : null;
+  const box = h("div", { class: "syn" }, h("h3", {}, "Completar informações"));
+  if (!st) {
+    box.append(h("p", { class: "note", style: "margin:0 0 8px" }, "Busca capa, sinopse, ano, episódios ou capítulos e gêneros no AniList. Só preenche o que estiver vazio."),
+      h("button", { class: "btn", type: "button", style: "background:var(--wk)", onclick: async () => {
+        alLink = { wid: w.id, res: null }; render();
+        try { alLink.res = await anilistSearch(w.title, w.kind); } catch { alLink.err = true; }
+        render();
+      } }, "Buscar no AniList"));
+    return box;
+  }
+  if (st.err) { box.append(h("p", { class: "hint" }, "Não deu para buscar no AniList agora. Tente de novo mais tarde.")); return box; }
+  if (!st.res) { box.append(h("p", { class: "hint" }, "Buscando…")); return box; }
+  if (!st.res.length) { box.append(h("p", { class: "hint" }, "Não encontrei. Confira se o nome está certo em “Editar informações”.")); return box; }
+  box.append(h("p", { class: "note", style: "margin:0 0 8px" }, "Qual destes é a obra?"));
+  for (const a of st.res.slice(0, 5)) box.append(h("div", { class: "sg", style: "padding:10px 0" },
+    h("div", { class: "sg-head" }, coverEl(a.cover_url, "sm"), h("div", { class: "sg-t" }, h("b", {}, a.title), h("small", {}, alSummary(a))),
+      h("button", { class: "btn alt", type: "button", onclick: async () => {
+        const patch = {}; for (const k of ["cover_url", "synopsis", "genres", "format", "status", "studio", "source"]) if (!w[k] && a[k]) patch[k] = a[k];
+        if (w.total == null && a.total != null) patch.total = a.total;
+        if (w.year == null && a.year != null) patch.year = a.year;
+        const extra = [a.title, ...String(a.alt_titles || "").split(" · ")].filter(x => x && norm(x) !== norm(w.title) && !norm(w.alt_titles).includes(norm(x)));
+        if (extra.length) patch.alt_titles = [w.alt_titles, ...extra].filter(Boolean).join(" · ").slice(0, 600);
+        try { const nw = await api.updateWork(w.id, patch); works.set(nw.id, nw); alLink = null; toast("Informações completadas!"); render(); } catch (e) { toast(errMsg(e)); }
+      } }, "É este"))));
+  box.append(h("button", { class: "link", type: "button", onclick: () => { alLink = null; render(); } }, "Cancelar"));
+  return box;
 }
 function editForm(w, U) {
   const f = (id, label, v, cls, type) => h("label", { class: "field" + (cls ? " " + cls : "") }, label, h("input", { id: "we-" + id, value: v ?? "", type: type || "text" }));
