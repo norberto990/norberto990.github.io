@@ -191,17 +191,31 @@ function chunks(text, max = 450) {
   return out;
 }
 const decodeEnt = s => String(s).replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n)).replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+// tradutor 1: MyMemory · tradutor 2 (reserva): Google Tradutor público. Os dois são gratuitos e sem cadastro.
+async function mm(c) {
+  const url = "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(c) + "&langpair=en|pt-BR" + (MM_EMAIL ? "&de=" + encodeURIComponent(MM_EMAIL) : "");
+  const r = await fetch(url);
+  const j = await r.json().catch(() => ({}));
+  const t = j && j.responseData && j.responseData.translatedText;
+  if (!r.ok || Number(j.responseStatus) !== 200 || !t || /MYMEMORY WARNING|QUERY LENGTH LIMIT|INVALID/i.test(t)) throw new Error("MyMemory: " + (j.responseDetails || t || r.status));
+  return decodeEnt(t).trim();
+}
+async function gt(c) {
+  const r = await fetch("https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt&dt=t&q=" + encodeURIComponent(c));
+  const j = await r.json().catch(() => null);
+  if (!r.ok || !Array.isArray(j) || !Array.isArray(j[0])) throw new Error("Google: " + r.status);
+  return j[0].map(x => x[0]).join("").trim();
+}
 export async function translatePT(text) {
   let out = "";
   for (const c of chunks(text)) {
     if (c === "\n\n") { out = out.trimEnd() + "\n\n"; continue; }
-    const url = "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(c) + "&langpair=en|pt-BR" + (MM_EMAIL ? "&de=" + encodeURIComponent(MM_EMAIL) : "");
-    const r = await fetch(url);
-    const j = await r.json().catch(() => ({}));
-    const t = j && j.responseData && j.responseData.translatedText;
-    if (!r.ok || Number(j.responseStatus) !== 200 || !t || /MYMEMORY WARNING|QUERY LENGTH LIMIT/i.test(t)) throw new Error("cota de tradução gratuita acabou por hoje");
-    out += decodeEnt(t).trim() + " ";
-    await sleep(800);
+    let t;
+    try { t = await mm(c); } catch (e1) {
+      try { t = await gt(c); } catch (e2) { throw new Error(e1.message + " | " + e2.message); }
+    }
+    out += t + " ";
+    await sleep(700);
   }
   return out.trim().slice(0, 5900);
 }
@@ -318,7 +332,7 @@ export async function main() {
     const en = (patches.get(w.id) || {}).synopsis_en || w.synopsis_en;
     if (w.synopsis || !en) continue;
     try { const pt = await translatePT(en); if (pt) { const p = P(w); p.synopsis = pt; p.syn_src = "gratis"; trads++; log(`  traduzida: ${w.title}`); } }
-    catch (e) { log("Tradução:", e.message); break; }
+    catch (e) { erros++; log("Tradução falhou:", e.message); break; }
   }
 
   // 4) salva só o que mudou
