@@ -1,0 +1,22 @@
+name: Atualizar obras (todo dia 9:30)
+
+on:
+  schedule:
+    # 12:30 UTC = 9:30 no horário de Brasília. O GitHub às vezes atrasa alguns minutos.
+    - cron: "30 12 * * *"
+  workflow_dispatch: {}   # botão "Run workflow" para rodar na hora
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Buscar novidades no AniList e salvar no site
+        run: node scripts/sync.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
