@@ -852,7 +852,8 @@ function renderWork() {
   box.style.setProperty("--wk", "var(--c-" + k + ")");
   const cnt = st => s.who.filter(i => i.status === st).length;
   const cov = coverOf(w);
-  const info = [[L("Tipo", "Type"), tv(w.format)], [U[0], w.total || "?"], [L("Situação", "Status"), tv(w.status)], [L("Ano", "Year"), w.year], [k === "anime" ? L("Estúdio", "Studio") : L("Autor", "Author"), w.studio], [L("Fonte", "Source"), tv(w.source)], [L("Gêneros", "Genres"), tvList(w.genres).join(", ")]].filter(x => x[1]);
+  const totalTxt = w.total ? String(w.total) : r.num != null ? numTxt(r.num) + "+ " + L("(em lançamento)", "(ongoing)") : L("ainda sem dados", "no data yet");
+  const info = [[L("Tipo", "Type"), tv(w.format)], [U[0], totalTxt], [L("Situação", "Status"), tv(w.status)], [L("Ano", "Year"), w.year], [k === "anime" ? L("Estúdio", "Studio") : L("Autor", "Author"), w.studio], [L("Fonte", "Source"), tv(w.source)], [L("Gêneros", "Genres"), tvList(w.genres).join(", ")]].filter(x => x[1]);
   const side = h("aside", { class: "wv-side" },
     cov ? h("img", { class: "wv-cover", src: cov, alt: L("Capa de ", "Cover of ") + w.title, decoding: "async" }) : h("div", { class: "wv-cover" }, svg(I_IMG)),
     w.alt_titles ? h("div", { class: "blk" }, h("h3", {}, L("Outros nomes", "Other titles")), h("ul", { class: "plain" }, ...w.alt_titles.split(/\s*·\s*/).filter(Boolean).map(n => h("li", {}, n)))) : null,
