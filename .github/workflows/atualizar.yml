@@ -1,22 +1,41 @@
-name: Atualizar obras (todo dia 9:30)
+name: Atualizar lançamentos (a cada 15 min)
 
 on:
   schedule:
-    # 12:30 UTC = 9:30 no horário de Brasília. O GitHub às vezes atrasa alguns minutos.
-    - cron: "30 12 * * *"
+    # a cada 15 minutos (o GitHub às vezes atrasa alguns minutos quando está cheio)
+    - cron: "*/15 * * * *"
   workflow_dispatch: {}   # botão "Run workflow" para rodar na hora
+
+permissions:
+  contents: read
+  actions: write   # só para manter esta tarefa ligada (veja o último passo)
+
+concurrency:
+  group: atualizar-lancamentos
+  cancel-in-progress: false
 
 jobs:
   atualizar:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
-      - name: Buscar novidades no AniList e salvar no site
+          node-version: 22
+      - name: Buscar lançamentos oficiais e salvar no site
         run: node scripts/sync.mjs
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          MYMEMORY_EMAIL: ${{ secrets.MYMEMORY_EMAIL }}
+      # O GitHub desliga tarefas agendadas de repositórios sem mudanças por 60 dias.
+      # Uma vez por dia, este passo avisa o GitHub que a tarefa continua em uso.
+      - name: Manter a tarefa ligada
+        if: github.event_name == 'schedule'
+        run: |
+          if [ "$(date -u +%H)" = "12" ] && [ "$(date -u +%M)" -lt 15 ]; then
+            gh api -X PUT "repos/${{ github.repository }}/actions/workflows/atualizar.yml/enable" && echo "ok" || echo "não deu, sem problema"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
