@@ -531,8 +531,11 @@ function renderFooter() {
 }
 
 /* ---------------- render geral ---------------- */
+let lastRouteKey = "";
 function render() {
-  const keep = {}; for (const el of document.querySelectorAll("#list input:not([type=file]), #wv input:not([type=file]), #wv textarea, #me input, #newform input:not([type=file])")) if (el.id) keep[el.id] = el.value;
+  const routeKey = location.pathname + location.search;
+  const samePage = routeKey === lastRouteKey; lastRouteKey = routeKey;
+  const keep = {}; if (samePage) for (const el of document.querySelectorAll("#list input:not([type=file]), #wv input:not([type=file]), #wv textarea, #me input, #newform input:not([type=file])")) if (el.id) keep[el.id] = el.value;
   const ae = document.activeElement, fid = ae && ae.id, caret = ae && ae.selectionStart;
   $("app").dataset.cat = cat;
   renderMe(); renderNote();
@@ -551,7 +554,7 @@ function render() {
   }
   if (chatWork) renderChat(false);
   for (const [id, v] of Object.entries(keep)) { const el = $(id); if (el && el.value !== v) el.value = v; }
-  if (fid && fid !== "q") { const el = $(fid); if (el && el !== document.activeElement) { el.focus(); try { if (caret != null) el.setSelectionRange(caret, caret); } catch {} } }
+  if (samePage && fid && fid !== "q") { const el = $(fid); if (el && el !== document.activeElement) { el.focus(); try { if (caret != null) el.setSelectionRange(caret, caret); } catch {} } }
   flash = null;
 }
 function renderNote() {
@@ -777,6 +780,7 @@ $("q").addEventListener("input", () => { suggOpen = true; renderSugg(); });
 $("q").addEventListener("focus", () => { if ($("q").value) { suggOpen = true; renderSugg(); } });
 function searchAll() { const q = $("q").value.trim(); if (!q) return; $("q").blur(); go("/buscar?q=" + encodeURIComponent(q) + "&tipo=" + cat); }
 $("q").addEventListener("keydown", e => { if (e.key === "Escape") { closeSearch(); $("q").blur(); } else if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); searchAll(); } });
+$("searchbox").addEventListener("submit", e => { e.preventDefault(); searchAll(); });
 document.addEventListener("pointerdown", e => { if (suggOpen && !$("searchbox").contains(e.target)) { suggOpen = false; $("sugg").hidden = true; } });
 
 /* ---------------- página com todos os resultados ---------------- */
@@ -952,8 +956,8 @@ function renderWork() {
     };
     mineBox = h("div", { class: "mine-box" }, h("h3", {}, mine ? L("Na sua lista", "On your list") : L("Adicionar à minha lista", "Add to my list")),
       h("div", { class: "sts" }, ST.map(st => h("button", { class: "st s-" + st + (mine && mine.status === st ? " on" : ""), type: "button", "aria-pressed": !!(mine && mine.status === st), onclick: async () => { if (await setItem(w, { status: st })) ok(w.title + ": " + stLabel(st, k)); } }, stLabel(st, k)))),
-      mine ? h("div", { class: "prog" }, notaSelect("wv-nota", mine.score, e => setItem(w, { score: e.target.value ? Number(e.target.value) : null })),
-        h("label", { for: "wv-ep" }, U[0] + ":"), h("input", { id: "wv-ep", type: "number", min: "0", inputmode: "numeric", value: ep, onchange: e => setEp(Number(e.target.value) || 0) }),
+      mine ? h("div", { class: "prog" }, notaSelect("wv-nota-" + w.id, mine.score, e => setItem(w, { score: e.target.value ? Number(e.target.value) : null })),
+        h("label", { for: "wv-ep-" + w.id }, U[0] + ":"), h("input", { id: "wv-ep-" + w.id, type: "number", min: "0", inputmode: "numeric", value: ep, onchange: e => setEp(Number(e.target.value) || 0), onkeydown: e => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } } }),
         h("span", {}, "/ " + (w.total || "?")), h("button", { type: "button", onclick: () => setEp(ep + 1) }, "+1"),
         r.num != null && ep < r.num && mine.status !== "visto" ? h("span", { class: "behind" }, L(`já saiu até o ${numTxt(r.num)}`, `out up to ${numTxt(r.num)}`)) : null,
         w.total ? h("div", { class: "bar-p", role: "progressbar", "aria-valuemin": 0, "aria-valuemax": w.total, "aria-valuenow": ep }, h("i", { style: "width:" + Math.min(100, ep / w.total * 100) + "%" })) : null) : null,
@@ -1263,6 +1267,7 @@ function paintLogin() {
       if (isUp) {
         const nick = $("lg-nick").value.trim().slice(0, 40);
         if (!nick) { err.textContent = L("Escolha um nome para a galera ver.", "Pick a name for your friends to see."); btn.disabled = false; return; }
+        if (pass !== $("lg-pass2").value) { err.textContent = L("As senhas não são iguais. Digite a mesma senha nos dois campos.", "The passwords don't match. Type the same password in both fields."); btn.disabled = false; $("lg-pass2").focus(); return; }
         const r = await api.signUp(email, pass, nick);
         if (!r.session) { err.className = "gate-ok"; err.textContent = L("Conta criada! Confirme pelo link que chegou no seu e-mail e depois entre.", "Account created! Confirm with the link sent to your e-mail, then sign in."); btn.disabled = false; return; }
       } else await api.signIn(email, pass);
@@ -1275,6 +1280,7 @@ function paintLogin() {
     isUp ? h("label", { class: "field" }, L("Seu nome na lista", "Your name on the list"), h("input", { id: "lg-nick", maxlength: "40", autocomplete: "nickname", required: true })) : null,
     h("label", { class: "field" }, "E-mail", h("input", { id: "lg-email", type: "email", required: true, autocomplete: "email", inputmode: "email" })),
     isReset ? null : h("label", { class: "field" }, L("Senha", "Password"), h("input", { id: "lg-pass", type: "password", required: true, minlength: "6", autocomplete: isUp ? "new-password" : "current-password" })),
+    isUp ? h("label", { class: "field" }, L("Confirme a senha", "Confirm password"), h("input", { id: "lg-pass2", type: "password", required: true, minlength: "6", autocomplete: "new-password" })) : null,
     isUp ? h("small", { class: "note" }, L("Mínimo de 6 caracteres.", "At least 6 characters.")) : null,
     err, btn,
     h("div", { class: "gate-links" },
