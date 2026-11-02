@@ -471,6 +471,7 @@ function parseRoute(path) {
   const p = path.replace(/\/+$/, "") || "/";
   let m;
   if (p === "/") return { view: "home", kind: "anime", mode: me ? "minha" : "catalogo" };
+  if (p === "/buscar") { const sp = new URLSearchParams(location.search); const k = sp.get("tipo"); return { view: "search", kind: KINDS[k] ? k : cat, q: (sp.get("q") || "").slice(0, 100) }; }
   if ((m = p.match(/^\/(anime|manga|novel)\/([a-z0-9-]+)$/))) return { view: "work", kind: m[1], slug: m[2] };
   if ((m = p.match(/^\/(animes|mangas|novels)(?:\/(galera|catalogo))?$/))) return { view: "home", kind: m[1].slice(0, -1), mode: m[2] || "minha" };
   return { view: "notfound", kind: cat };
@@ -485,13 +486,14 @@ function applyRoute() {
     if (route.kind !== cat) { stFilter = "todos"; person = "todos"; shown = PAGE; }
     cat = route.kind; mode = route.mode;
     if (mode === "minha" && !me) { mode = "catalogo"; history.replaceState(null, "", KINDS[cat].path + "/catalogo"); }
-  } else if (route.view === "work") { cat = route.kind; wvTab = "detalhes"; wvPanel = null; wvEditImg = null; }
-  closeSearch(); draft = null; renderNew(); render(); renderFooter();
+  } else if (route.view === "search") { cat = route.kind; }
+  else if (route.view === "work") { cat = route.kind; wvTab = "detalhes"; wvPanel = null; wvEditImg = null; }
+  closeSearch(); if (route.view === "search") $("q").value = route.q; draft = null; renderNew(); render(); renderFooter();
 }
 const homePath = () => KINDS[cat].path + (mode === "minha" ? "" : "/" + mode);
 document.addEventListener("click", e => {
   const a = e.target.closest("a[data-link]");
-  if (a && !e.ctrlKey && !e.metaKey && !e.shiftKey && a.origin === location.origin) { e.preventDefault(); go(a.pathname); }
+  if (a && !e.ctrlKey && !e.metaKey && !e.shiftKey && a.origin === location.origin) { e.preventDefault(); go(a.pathname + a.search); }
   if (e.target.closest("[data-login]")) openLogin();
 });
 window.addEventListener("popstate", applyRoute);
@@ -541,8 +543,11 @@ function render() {
   else {
     $("q").placeholder = canEdit() ? L("Buscar ou adicionar ", "Search or add ") + KINDS[cat].one() + "…" : L("Buscar ", "Search ") + KINDS[cat].one() + "…";
     $("addbtn").hidden = !isAdm();
-    renderCats(); renderSeg(); renderFilters(); renderList(); if (suggOpen) renderSugg();
-    document.title = KINDS[cat].label() + " · " + L("Lista de Animes do Betoro-chan", "Betoro-chan's Anime List");
+    const isSearch = route.view === "search";
+    $("seg").parentElement.hidden = isSearch; $("filters").hidden = isSearch;
+    renderCats(); if (isSearch) renderSearchPage(); else { renderSeg(); renderFilters(); renderList(); }
+    if (suggOpen) renderSugg();
+    document.title = (isSearch ? L("Busca: ", "Search: ") + route.q : KINDS[cat].label()) + " · " + L("Lista de Animes do Betoro-chan", "Betoro-chan's Anime List");
   }
   if (chatWork) renderChat(false);
   for (const [id, v] of Object.entries(keep)) { const el = $(id); if (el && el.value !== v) el.value = v; }
@@ -580,7 +585,8 @@ function renderCats() {
   $("cats").replaceChildren(...Object.entries(KINDS).map(([k, v]) => {
     const n = me ? myItems().filter(i => (works.get(i.work_id) || {}).kind === k).length : [...works.values()].filter(w => w.kind === k).length;
     const fresh = me && myItems().some(i => { const w = works.get(i.work_id); return w && w.kind === k && behind(w, i, release(w)) > 0; });
-    return h("a", { class: "cat", role: "tab", "data-k": k, "aria-selected": cat === k, href: v.path + (mode === "minha" ? "" : "/" + mode), "data-link": true },
+    const href = route.view === "search" ? "/buscar?q=" + encodeURIComponent(route.q) + "&tipo=" + k : v.path + (mode === "minha" ? "" : "/" + mode);
+    return h("a", { class: "cat", role: "tab", "data-k": k, "aria-selected": cat === k, href, "data-link": true },
       v.label(), h("small", {}, n + " " + (me ? L("na sua lista", "on your list") : L(n === 1 ? "obra" : "obras", n === 1 ? "title" : "titles"))),
       fresh ? h("span", { class: "dot", title: L("Tem lançamento novo", "New release available") }) : null);
   }));
@@ -763,13 +769,72 @@ function renderSugg() {
     } }, L("+ Não achei: adicionar “", "+ Not found: add “") + raw.trim() + L("” à mão", "” manually")));
   }
   if (!canEdit()) kids.push(h("p", { class: "hint" }, h("button", { class: "link", type: "button", "data-login": true }, L("Entre na sua conta", "Sign in")), L(" para marcar e adicionar obras.", " to mark and add titles.")));
+  kids.push(h("button", { class: "new all", type: "button", onclick: searchAll }, L("Ver todos os resultados para “", "See all results for “") + raw.trim() + L("” (Enter)", "” (Enter)")));
   box.replaceChildren(...kids); box.hidden = false;
 }
 function closeSearch() { suggOpen = false; $("q").value = ""; $("sugg").hidden = true; }
 $("q").addEventListener("input", () => { suggOpen = true; renderSugg(); });
 $("q").addEventListener("focus", () => { if ($("q").value) { suggOpen = true; renderSugg(); } });
-$("q").addEventListener("keydown", e => { if (e.key === "Escape") { closeSearch(); $("q").blur(); } });
+function searchAll() { const q = $("q").value.trim(); if (!q) return; $("q").blur(); go("/buscar?q=" + encodeURIComponent(q) + "&tipo=" + cat); }
+$("q").addEventListener("keydown", e => { if (e.key === "Escape") { closeSearch(); $("q").blur(); } else if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); searchAll(); } });
 document.addEventListener("pointerdown", e => { if (suggOpen && !$("searchbox").contains(e.target)) { suggOpen = false; $("sugg").hidden = true; } });
+
+/* ---------------- página com todos os resultados ---------------- */
+let srch = { key: "", items: [], page: 0, hasNext: false, loading: false, err: false };
+async function anilistPage(q, kind, page) {
+  const k = AL_KINDS[kind];
+  const r = await fetch("https://graphql.anilist.co", {
+    method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ query: `query($q: String, $type: MediaType, $f: [MediaFormat], $p: Int) { Page(page: $p, perPage: 25) { pageInfo { hasNextPage } media(search: $q, type: $type, format_in: $f, isAdult: false, sort: [SEARCH_MATCH, POPULARITY_DESC]) { ${AL_FIELDS} } } }`, variables: { q, type: k.type, f: k.formats, p: page } }),
+  });
+  if (!r.ok) throw new Error("anilist " + r.status);
+  const j = await r.json(); const pg = (j.data && j.data.Page) || {};
+  return { items: (pg.media || []).filter(m => !m.isAdult).map(m => alToWork(m, kind)), hasNext: !!(pg.pageInfo && pg.pageInfo.hasNextPage) };
+}
+async function loadSearchPage() {
+  const key = cat + "|" + norm(route.q);
+  if (srch.key !== key) srch = { key, items: [], page: 0, hasNext: false, loading: false, err: false };
+  if (srch.loading || (srch.page && !srch.hasNext)) return;
+  srch.loading = true; srch.err = false; render();
+  try {
+    const r = await anilistPage(route.q, cat, srch.page + 1);
+    if (srch.key !== key) return;
+    const seenIds = new Set(srch.items.map(a => a.anilist_id));
+    srch.items = srch.items.concat(r.items.filter(a => !seenIds.has(a.anilist_id))); srch.page++; srch.hasNext = r.hasNext;
+  } catch { if (srch.key === key) srch.err = true; }
+  if (srch.key === key) { srch.loading = false; render(); }
+}
+function alCard(a) {
+  const there = [...works.values()].find(w => w.anilist_id === a.anilist_id);
+  if (there) return workCard(there, stats(there.id));
+  return h("li", { class: "card s-quero" },
+    h("div", { class: "c-top" }, coverEl(a.cover_url),
+      h("div", { class: "c-name" }, h("b", {}, a.title), h("small", { class: "alt" }, alSummary(a)), a.alt_titles ? h("small", { class: "alt" }, a.alt_titles) : null),
+      h("div", { class: "meta col" }, h("span", { class: "autotag" }, "AniList"))),
+    canEdit()
+      ? h("div", { class: "sts" }, ST.map(st => h("button", { class: "st s-" + st, type: "button", onclick: async () => { await addFromAnilist(a, st); } }, stLabel(st, a.kind))),
+          h("button", { class: "link", type: "button", onclick: async () => { const w = await addFromAnilist(a, null); if (w) go(workHref(w)); } }, L("Ver página", "Open page")))
+      : h("div", {}, h("button", { class: "link", type: "button", "data-login": true }, L("Entre para marcar", "Sign in to mark"))));
+}
+function renderSearchPage() {
+  const ul = $("list"), more = $("morebox"); more.replaceChildren();
+  const key = cat + "|" + norm(route.q);
+  if (!route.q) { ul.replaceChildren(empty(L("Digite algo na busca", "Type something to search"))); return; }
+  if (srch.key !== key && !srch.loading) setTimeout(loadSearchPage);
+  const q = norm(route.q);
+  const site = [...works.values()].filter(w => w.kind === cat).map(w => ({ w, sc: sim(q, w) })).filter(x => x.sc >= 0.34).sort((a, b) => b.sc - a.sc);
+  const siteIds = new Set(site.map(x => x.w.anilist_id).filter(Boolean));
+  const al = srch.key === key ? srch.items.filter(a => !siteIds.has(a.anilist_id)) : [];
+  const out = [h("li", { class: "sec-title" }, h("h2", {}, L("Resultados para “", "Results for “") + route.q + "” · " + KINDS[cat].label()))];
+  if (site.length) { out.push(h("li", { class: "sg-sec" }, L("Já no site", "Already on the site") + " (" + site.length + ")")); site.forEach(x => out.push(workCard(x.w, stats(x.w.id)))); }
+  out.push(h("li", { class: "sg-sec" }, L("No AniList", "On AniList") + (al.length ? " (" + al.length + (srch.hasNext ? "+" : "") + ")" : "")));
+  if (srch.key === key && srch.err) out.push(empty(L("Não deu para buscar no AniList agora", "Couldn't search AniList right now"), h("button", { class: "btn alt", type: "button", onclick: () => { srch.key = ""; loadSearchPage(); } }, L("Tentar de novo", "Try again"))));
+  else if (srch.key !== key || (srch.loading && !srch.items.length)) out.push(empty(L("Buscando…", "Searching…")));
+  else if (!al.length) out.push(empty(L("Nada a mais no AniList", "Nothing else on AniList"), L("Confira a grafia ou tente outra aba (Animes, Mangás, Novels).", "Check the spelling or try another tab (Anime, Manga, Novels).")));
+  al.forEach(a => out.push(alCard(a)));
+  ul.replaceChildren(...out);
+  if (srch.key === key && srch.hasNext) more.replaceChildren(h("button", { class: "btn alt", type: "button", disabled: srch.loading, onclick: loadSearchPage }, srch.loading ? L("Carregando…", "Loading…") : L("Carregar mais", "Load more")));
+}
 
 /* ---------------- adicionar à mão (ADM) ---------------- */
 function renderNew() {

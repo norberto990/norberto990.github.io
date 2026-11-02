@@ -411,3 +411,8 @@ a.btn{text-decoration:none;display:inline-block}
   .blk dl{grid-template-columns:minmax(90px,auto) minmax(0,1fr)}
 }
 @media (max-width:420px){.wv-tabs{flex-wrap:wrap}.wv-tabs button{padding:8px 10px}}
+
+.sec-title{list-style:none}
+.sec-title h2{margin:0;font-size:17px}
+li.sg-sec{list-style:none;border-radius:8px}
+.new.all{font-weight:700;color:var(--ink)}
