@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- regras de segurança do navegador: só roda código deste site e só conversa com os serviços que o site usa -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' blob: https://*.anilist.co https://*.supabase.co https://lh3.googleusercontent.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://graphql.anilist.co https://api.mymemory.translated.net https://translate.googleapis.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Lista de Animes do Betoro-chan</title>
 <meta name="description" content="A lista de animes, mangás e novels do Betoro-chan e da galera: o que cada um viu, notas, comentários e os lançamentos oficiais mais recentes.">
 <meta name="theme-color" content="#e8200f">
@@ -26,7 +29,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="/style.css?v=24">
+<link rel="stylesheet" href="/style.css?v=30">
 </head>
 <body>
 <a class="skip" href="#home">Pular para o conteúdo</a>
@@ -89,8 +92,15 @@
 <div class="toast" id="toast" hidden></div>
 <noscript><p class="note" style="padding:16px">Este site precisa de JavaScript ligado para funcionar.</p></noscript>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-<script src="/config.js?v=24"></script>
-<script src="/app.js?v=24"></script>
+<!-- biblioteca do Supabase (versão 2.117.3) guardada no próprio site: nada de código de terceiros -->
+<script src="/vendor/supabase.js?v=2.117.3"></script>
+<script src="/config.js?v=30"></script>
+<script src="/comum.js?v=30"></script>
+<script src="/js/base.js?v=30"></script>
+<script src="/js/busca.js?v=30"></script>
+<script src="/js/paginas.js?v=30"></script>
+<script src="/js/obra.js?v=30"></script>
+<script src="/js/comentarios.js?v=30"></script>
+<script src="/js/inicio.js?v=30"></script>
 </body>
 </html>
