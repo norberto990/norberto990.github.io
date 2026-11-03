@@ -1,0 +1,50 @@
+name: Testes
+
+# Roda sozinho a cada envio de arquivos para o GitHub. Se algo quebrar, o commit fica com ❌.
+on:
+  push:
+  pull_request:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  robo:
+    name: Robô e código comum
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+      - run: node tests/robo.test.mjs
+
+  banco:
+    name: Regras do banco
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: teste
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - run: bash tests/banco/rodar.sh "postgresql://postgres:teste@localhost:5432/postgres"
+
+  site:
+    name: Site no navegador
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.12"
+      - run: pip install playwright==1.56.0 && python -m playwright install --with-deps chromium
+      - run: python tests/site/site.test.py
